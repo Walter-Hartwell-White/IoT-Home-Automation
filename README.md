@@ -26,7 +26,7 @@ Click above to watch a demo of the project in action.
 ## 💡 Devices Used
 
 - **ESP32**: For controlling the devices via the web.
-- ![image](https://github.com/user-attachments/assets/1d49e983-5ee8-469a-866b-5b65cd291d70)
+  ![61o2ZUzB4XL](https://github.com/user-attachments/assets/b826cad4-fd46-4673-81b3-80502810c45b)
 - **5V 4-Channel Relay**: To switch household appliances on and off.
   ![71PQ9K7dRLL _AC_UF1000,1000_QL80_](https://github.com/user-attachments/assets/42d51b88-3c9d-4efb-8de5-0d5f97705a70)
 - **5V 2-Channel Relay**: For environmental monitoring.
@@ -44,6 +44,7 @@ Click above to watch a demo of the project in action.
 - **Digital Multimemter**: To test all the electircal current we use a **Digital Multimeter**.
   ![image](https://github.com/user-attachments/assets/4b10049b-1160-41cc-b78b-ad30ba118649)
 
+All the devices are not necessary, to implement the same as the above demo video i recommend to use all the devices with Precaution and considering all the safety measures.
 
 ## 📜 How to Use
 
@@ -65,8 +66,9 @@ I encountered some problems while compiling my code, so if you encounter same pr
 4. You will see a **QR Code** and a link to the QR Code.
 5. Download the **ESP RainMaker** Mobile Application and Scan the **QR Code**. Further Proceses are mentioned in the ****ESP RainMaker Mobile Applicaion****.
 
-I am also uploading a YouTube video for reference 
 [![Watch the video](https://i.ytimg.com/vi/7knQaSuEgsU/mqdefault.jpg)]([https://youtu.be/T-D1KVIuvjA](https://youtu.be/7knQaSuEgsU?si=ftGWDExrnD4hquuj))
+
+I am also uploading a YouTube video for reference.
 
 ---
 
