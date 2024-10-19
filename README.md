@@ -59,7 +59,8 @@ I encountered some problems while compiling my code, so if you encounter same pr
 2. https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers?tab=downloads 
 3. https://medium.com/@adihendro/esp32-built-in-led-blinking-4dd0b50264a
 
-## 📜 How to Use
+## ⚙️ How to Setup
+
 1. After successful compile **Upload** the code by clicking on the button next to **Verify**.
 2. After successful uploading the code you might not see any output in the console, to view output click on **Serial Monitor**.
 3. Go to **Tools** and click on **Serial Monitor**.
