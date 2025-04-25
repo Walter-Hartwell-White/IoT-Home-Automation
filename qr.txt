@@ -1,0 +1,1 @@
+https://rainmaker.espressif.com/qrcode.html?data={%22ver%22:%22v1%22,%22name%22:%22SSID%22,%22pop%22:%22123456789%22,%22transport%22:%22ble%22}
