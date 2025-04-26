@@ -2,6 +2,8 @@
 #include "RMaker.h"
 #include "WiFi.h"
 #include "WiFiProv.h"
+// global state
+bool g_provisioned = false;
 
 unsigned long previousReconnectAttempt = 0;
 const unsigned long reconnectInterval = 10000;  // 10 seconds
@@ -70,8 +72,9 @@ void sysProvEvent(arduino_event_t *sys_event)
 #endif        
         break;
         case ARDUINO_EVENT_WIFI_STA_CONNECTED:
-        Serial.printf("\nConnected to Wi-Fi!\n");
+        Serial.println("Connected to Wi-Fi – provisioning done.");
         digitalWrite(wifiLed, true);
+        g_provisioned = true; 
         break;
     }
 }
@@ -242,23 +245,23 @@ void manual_control()
 
 void setup()
 {
-
     Serial.begin(115200);
-    WiFi.setAutoReconnect(true);  // Auto reconnect enabled
-    WiFi.persistent(true);        // Save WiFi credentials
 
-    uint32_t chipId = 0;
-    
-    // Set the Relays GPIOs as output mode
+    // ── NEW: clear any saved Wi-Fi creds so factory reset truly wipes them
+    WiFi.disconnect(true, true);
+    delay(100);
+
+    // (remove your old WiFi.setAutoReconnect / WiFi.persistent calls here)
+
+    // ── your existing relay & switch pin setup unchanged ─────────────────────
     pinMode(RelayPin1, OUTPUT);
     pinMode(RelayPin2, OUTPUT);
     pinMode(RelayPin3, OUTPUT);
     pinMode(RelayPin4, OUTPUT);
     pinMode(RelayPin5, OUTPUT);
     pinMode(RelayPin6, OUTPUT);
-    pinMode(wifiLed, OUTPUT);
-    
-    // Configure the input GPIOs
+    pinMode(wifiLed,    OUTPUT);
+
     pinMode(SwitchPin1, INPUT_PULLUP);
     pinMode(SwitchPin2, INPUT_PULLUP);
     pinMode(SwitchPin3, INPUT_PULLUP);
@@ -266,8 +269,7 @@ void setup()
     pinMode(SwitchPin5, INPUT_PULLUP);
     pinMode(SwitchPin6, INPUT_PULLUP);
     pinMode(gpio_reset, INPUT);
-    
-    // Write to the GPIOs the default state on booting
+
     digitalWrite(RelayPin1, !toggleState_1);
     digitalWrite(RelayPin2, !toggleState_2);
     digitalWrite(RelayPin3, !toggleState_3);
@@ -275,17 +277,15 @@ void setup()
     digitalWrite(RelayPin5, !toggleState_5);
     digitalWrite(RelayPin6, !toggleState_6);
     digitalWrite(wifiLed, LOW);
+    // ─────────────────────────────────────────────────────────────────────────
 
-    Node my_node;    
-    my_node = RMaker.initNode("ESP32_Relay_6");
-
+    Node my_node = RMaker.initNode("ESP32_Relay_6");
     my_switch1.addCb(write_callback);
     my_switch2.addCb(write_callback);
     my_switch3.addCb(write_callback);
     my_switch4.addCb(write_callback);
     my_switch5.addCb(write_callback);
     my_switch6.addCb(write_callback);
-
     my_node.addDevice(my_switch1);
     my_node.addDevice(my_switch2);
     my_node.addDevice(my_switch3);
@@ -294,27 +294,38 @@ void setup()
     my_node.addDevice(my_switch6);
 
     RMaker.enableOTA(OTA_USING_PARAMS);
-    
     RMaker.enableTZService();
     RMaker.enableSchedule();
 
-    
-    for(int i=0; i<17; i=i+8) {
-      chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
-    }
-
-    Serial.printf("\nChip ID:  %d Service Name: %s\n", chipId, service_name);
-
+    Serial.printf("\nChip ID:  %u Service Name: %s\n", ESP.getChipRevision(), service_name);
     Serial.printf("\nStarting ESP-RainMaker\n");
     RMaker.start();
 
+    // hook up our event handler to flip g_provisioned when Wi-Fi actually connects
     WiFi.onEvent(sysProvEvent);
-#if CONFIG_IDF_TARGET_ESP32
-    WiFiProv.beginProvision(WIFI_PROV_SCHEME_BLE, WIFI_PROV_SCHEME_HANDLER_FREE_BTDM, WIFI_PROV_SECURITY_1, pop, service_name);
-#else
-    WiFiProv.beginProvision(WIFI_PROV_SCHEME_SOFTAP, WIFI_PROV_SCHEME_HANDLER_NONE, WIFI_PROV_SECURITY_1, pop, service_name);
-#endif
 
+    // ── NEW: only launch provisioning if we haven’t yet connected once
+    if (!g_provisioned) {
+  #if CONFIG_IDF_TARGET_ESP32
+        WiFiProv.beginProvision(
+            WIFI_PROV_SCHEME_BLE,
+            WIFI_PROV_SCHEME_HANDLER_FREE_BTDM,
+            WIFI_PROV_SECURITY_1,
+            pop,
+            service_name
+        );
+  #else
+        WiFiProv.beginProvision(
+            WIFI_PROV_SCHEME_SOFTAP,
+            WIFI_PROV_SCHEME_HANDLER_NONE,
+            WIFI_PROV_SECURITY_1,
+            pop,
+            service_name
+        );
+  #endif
+    }
+
+    // your existing my_switchX.updateAndReportParam(...) calls, unchanged
     my_switch1.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, false);
     my_switch2.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, false);
     my_switch3.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, false);
@@ -323,46 +334,56 @@ void setup()
     my_switch6.updateAndReportParam(ESP_RMAKER_DEF_POWER_NAME, false);
 }
 
+
 void loop()
 {
-      manual_control();
-    if(digitalRead(gpio_reset) == LOW) {
+    manual_control();
+
+    // ── your existing reset-button logic (unchanged) ─────────────────────────
+    if (digitalRead(gpio_reset) == LOW) {
         Serial.printf("Reset Button Pressed!\n");
         delay(100);
         int startTime = millis();
-        while(digitalRead(gpio_reset) == LOW) delay(50);
+        while (digitalRead(gpio_reset) == LOW) delay(50);
         int endTime = millis();
 
         if ((endTime - startTime) > 10000) {
-          Serial.printf("Reset to factory.\n");
-          RMakerFactoryReset(2);
+            Serial.printf("Reset to factory.\n");
+            RMakerFactoryReset(2);
         } else if ((endTime - startTime) > 3000) {
-          Serial.printf("Reset Wi-Fi.\n");
-
-          RMakerWiFiReset(2);
-          RMakerWiFiReset(2);
+            Serial.printf("Reset Wi-Fi.\n");
+            RMakerWiFiReset(2);
         }
     }
+    // ─────────────────────────────────────────────────────────────────────────
+
     delay(100);
 
-static unsigned long lastPrint = 0;
-unsigned long currentMillis = millis();
+    static unsigned long lastPrint               = 0;
+    static unsigned long previousReconnectAttempt = 0;
+    unsigned long currentMillis                  = millis();
 
-if (WiFi.status() != WL_CONNECTED) {
-    digitalWrite(wifiLed, LOW);
-
-    if (currentMillis - previousReconnectAttempt >= reconnectInterval) {
-        Serial.println("WiFi disconnected. Trying to reconnect...");
-        WiFi.begin();  // Try reconnect
-        previousReconnectAttempt = currentMillis;
-    }
-} else {
-    digitalWrite(wifiLed, HIGH);
-
-    if (currentMillis - lastPrint >= 30000) {  // Log every 30 seconds
-        Serial.println("WiFi still connected.");
-        lastPrint = currentMillis;
+    // ── NEW: only try Wi-Fi reconnect after we've proven provisioning worked
+    if (g_provisioned) {
+        if (WiFi.status() != WL_CONNECTED) {
+            digitalWrite(wifiLed, LOW);
+            if (currentMillis - previousReconnectAttempt >= reconnectInterval) {
+                Serial.println("WiFi disconnected. Trying to reconnect...");
+                WiFi.begin();
+                previousReconnectAttempt = currentMillis;
+            }
+        } else {
+            digitalWrite(wifiLed, HIGH);
+            if (currentMillis - lastPrint >= 30000) {
+                Serial.println("WiFi still connected.");
+                lastPrint = currentMillis;
+            }
+        }
+    } else {
+        // we haven’t yet done the first provisioning+connect
+        Serial.println("Device not provisioned. Waiting for provisioning...");
+        digitalWrite(wifiLed, LOW);
+        // (optionally you can re-invoke WiFiProv.beginProvision here if you want
+        // to reprint QR after timeout)
     }
 }
-}
-
